@@ -1,0 +1,31 @@
+# Put this at: .github/workflows/fetch_news.yml  in your GitHub repo
+name: Update news
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download calendar
+        run: |
+          curl -fsSL --retry 3 --retry-delay 30 \
+            -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36" \
+            "https://nfs.faireconomy.media/ff_calendar_thisweek.json" -o /tmp/news.json
+          python3 -c "import json; d=json.load(open('/tmp/news.json')); assert isinstance(d, list) and d"
+          cp /tmp/news.json news.json
+
+      - name: Commit if changed
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add news.json
+          git diff --cached --quiet || (git commit -m "update news" && git push)
